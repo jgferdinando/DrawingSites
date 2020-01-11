@@ -1,0 +1,49 @@
+Map.setCenter(-115.841305, 33.343673, 10); 
+
+//NED coverage in US only at 10 meters per pixel, SRTM worldwide at 30 meters per pixel. Switch the double slashes in front of "var elevation" to change datasets.
+
+var elevation = ee.Image('USGS/NED').select('elevation');               //elevation in meters, represented in 256 shades of gray
+
+//var elevation = ee.Image('CGIAR/SRTM90_V4').select('elevation');
+
+var slope = ee.Terrain.slope(elevation);                                //steepness of terrain
+
+var hillshade = ee.Algorithms.HillShadow(elevation, 180, 80, 0, false); //simulate shadows on terrain
+
+var aspect = ee.Terrain.aspect(elevation);                              //what direction does a slope face?
+
+var elevationVis = {min: -75, max: 1900.0, gamma: 1};
+Map.addLayer(elevation, elevationVis, 'Elevation');
+
+var slopeVis = {min: 0, max: 60, gamma: 2};
+Map.addLayer(slope, slopeVis, 'Slope');
+
+var hillshadeVis = {min: 0, max: 1, gamma: 1};
+Map.addLayer(hillshade, hillshadeVis, 'Hillshade');
+
+var aspectVis = {min: 0, max: 359, gamma: 1};
+Map.addLayer(aspect, aspectVis, 'Aspect');
+
+var elevation = elevation.visualize(elevationVis);
+Export.image.toDrive({
+  image: elevation,
+  description: 'Elevation',
+  scale: 30});
+
+var slope = slope.visualize(slopeVis);
+Export.image.toDrive({
+  image: slope,
+  description: 'Slope',
+  scale: 30});
+  
+var hillshade = hillshade.visualize(hillshadeVis);
+Export.image.toDrive({
+  image: hillshade,
+  description: 'Hillshade',
+  scale: 30});
+
+var aspect = aspect.visualize(aspectVis);
+Export.image.toDrive({
+  image: aspect,
+  description: 'Aspect',
+  scale: 30});
