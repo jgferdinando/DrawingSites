@@ -1,0 +1,43 @@
+//Landsat 8 monochrome and color images 
+ 
+Map.setCenter(-115.841305, 33.343673, 10);          //map center in longitude, latitude (x,y) and zoom level (larger numbers mean closer view)
+
+var L8 = ee.ImageCollection('LANDSAT/LC08/C01/T1')  //open landsat images from the date range, and months given
+  .filterDate('2019-01-01','2019-12-31')
+  .filter(ee.Filter.calendarRange(9,11,'month'))    
+  
+var composite = ee.Algorithms.Landsat               //let Google Earth Engine find cloud-free pixels available in the images
+  .simpleComposite({   
+  collection:L8,
+  asFloat:true
+})                                                  
+ 
+var aerosol = 'B1'                                  //give the image bands friendly names for the colors they capture
+var blue = 'B2'
+var green = 'B3'
+var red = 'B4'
+var nir = 'B5'
+var swir1 = 'B6'
+var swir2 = 'B7'
+var panchromatic = 'B8'
+var cirrus = 'B9'
+var lwir1 = 'B10'                                   //Unlike the other bands, these values are around their degrees kelvin, so set min-max values around 270-300
+var lwir2 = 'B11'                                   //dito
+
+var minimum = [0,0,0];                              // min-max stretch, controls contrast of the image for each color channel R-G-B
+var maximum = [0.4,0.4,0.4];                        // if calling a single band in "bands" below, use only one min and one max value or you will get an error
+var bands = [red,green,blue];                       // list the bands to display, either one band name for grayscale or three for the red, green, and blue color channels respectively (you can assign any bands to these three!)
+  
+Map.addLayer(composite, {bands: bands, min: minimum, max: maximum, opacity:1})  //displays the image in your browser
+
+var landsatImage = composite.visualize({            // a visualizer is needed before you export to Google Drive
+  bands: bands,
+  min: minimum, max: maximum
+});                     
+
+var bands = bands.toString();                       // automatically names your image after the bands used in it
+Export.image.toDrive({                              // export to drive: go to the "Tasks" tab in the top right to run the task
+  image: landsatImage,
+  description: bands,
+  crs: 'EPSG:3857',                                 // map projection; probably leave this alone, but feel free to look up alternatives
+  scale: 30});                                      // scale here means meters per pixel
