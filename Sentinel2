@@ -1,0 +1,49 @@
+Map.setCenter(-115.690964, 33.381782, 13); 
+
+function maskS2clouds(image) {
+  var qa = image.select('QA60');
+
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask).divide(10000);
+}
+
+var dataset = ee.ImageCollection('COPERNICUS/S2')
+                  .filterDate('2019-09-01', '2019-09-30')
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 10))
+                  //.map(maskS2clouds)
+                  .median();
+
+//color stretch values for screen and for google drive geotiff export:
+var minimum = [0,0,0];
+var maximum = [4000,4000,4000];
+var gamma = [1, 1, 1];
+
+var bands = ['B4', 'B3', 'B2'];
+
+var rgbVis = {
+  min: minimum,
+  max: maximum,
+  bands: bands,
+  gamma: gamma,
+};
+
+//make layer visible in browser map
+Map.addLayer(dataset, rgbVis, 'Multiband RGB Composite');
+
+//export image to google drive
+var trueColorRGB = dataset.visualize({
+  bands: bands,
+  min: minimum, max:maximum,
+  gamma: gamma,
+});
+Export.image.toDrive({
+ image: trueColorRGB,
+ description: 'trueColor',
+ crs: 'EPSG:3857',
+ scale: 10,
+});
