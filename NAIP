@@ -1,0 +1,27 @@
+Map.setCenter(-115.695528, 33.354435, 16.5); 
+var dataset = ee.ImageCollection('USDA/NAIP/DOQQ')
+                  .filter(ee.Filter.date('2015-01-01', '2019-12-31'));
+var trueColor = dataset.select(['R', 'G', 'B']);
+
+var red = dataset.select(['R']).median();
+var nir = dataset.select(['N']).median();
+var ndvi = nir.subtract(red).divide(nir.add(red)).rename('NDVI');
+var ndviVis = {min:-0.15,max:0.35};
+Map.addLayer(ndvi,ndviVis,'NDVI');
+var ndvi = ndvi.visualize(ndviVis);
+Export.image.toDrive({
+  image: ndvi,
+  description: 'ndviForSite',
+  scale: 1});
+
+var trueColorVis = {
+  min: 40.0,
+  max: 185.0,
+};
+var trueColorImage = trueColor.median();
+Map.addLayer(trueColorImage, trueColorVis, 'True Color');
+var trueColorImage = trueColorImage.visualize(trueColorVis);
+Export.image.toDrive({
+  image: trueColorImage,
+  description: 'trueColorImage',
+  scale: 1});
