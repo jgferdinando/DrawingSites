@@ -8,11 +8,26 @@ var elevation = ee.Image('USGS/NED').select('elevation');               //elevat
 
 var slope = ee.Terrain.slope(elevation);                                //steepness of terrain
 
-var hillshade = ee.Algorithms.HillShadow(elevation, 180, 80, 0, false); //simulate shadows on terrain
+var hillshade = ee.Algorithms.HillShadow(elevation, 135, 85, 0, false); //simulate shadows on terrain
 
 var aspect = ee.Terrain.aspect(elevation);                              //what direction does a slope face?
 
-var elevationVis = {min: -75, max: 1900.0, gamma: 1};
+/////////////////////////////////////
+
+var lines = ee.List.sequence(-10, 100, 2);
+ 
+var contourlines = lines.map(function(line) {
+var mycontour = elevation
+.convolve(ee.Kernel.gaussian(5, 3))
+.subtract(ee.Image.constant(line)).zeroCrossing()
+.multiply(ee.Image.constant(line)).toFloat();
+return mycontour.mask(mycontour);});
+ 
+contourlines = ee.ImageCollection(contourlines).mosaic();
+
+/////////////////////////////////////
+
+var elevationVis = {min: -5, max: 50.0, gamma: 1.5};
 Map.addLayer(elevation, elevationVis, 'Elevation');
 
 var slopeVis = {min: 0, max: 60, gamma: 2};
@@ -24,26 +39,35 @@ Map.addLayer(hillshade, hillshadeVis, 'Hillshade');
 var aspectVis = {min: 0, max: 359, gamma: 1};
 Map.addLayer(aspect, aspectVis, 'Aspect');
 
+var contourVis = {min: -10, max: 100, palette:['00ff00', 'ff0000']};
+Map.addLayer(contourlines, contourVis, 'contours');
+
 var elevation = elevation.visualize(elevationVis);
 Export.image.toDrive({
   image: elevation,
   description: 'Elevation',
-  scale: 30});
+  scale: 10});
 
 var slope = slope.visualize(slopeVis);
 Export.image.toDrive({
   image: slope,
   description: 'Slope',
-  scale: 30});
+  scale: 10});
   
 var hillshade = hillshade.visualize(hillshadeVis);
 Export.image.toDrive({
   image: hillshade,
   description: 'Hillshade',
-  scale: 30});
+  scale: 10});
 
 var aspect = aspect.visualize(aspectVis);
 Export.image.toDrive({
   image: aspect,
   description: 'Aspect',
-  scale: 30});
+  scale: 10});
+  
+var contourlines = contourlines.visualize(contourVis);
+Export.image.toDrive({
+  image: contourlines,
+  description: 'ContourLines',
+  scale: 1});
