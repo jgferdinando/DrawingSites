@@ -38,5 +38,5 @@ var descChange = descChange.visualize({
 Export.image.toDrive({                              
   image: descChange,
   description: 'sentinel1',
-  crs: 'EPSG:3857',                                 
-  scale: 17}); 
+  crs: 'EPSG:3395',                                 
+  scale: 10}); 
