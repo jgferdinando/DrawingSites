@@ -44,6 +44,6 @@ var trueColorRGB = dataset.visualize({
 Export.image.toDrive({
  image: trueColorRGB,
  description: 'trueColor',
- crs: 'EPSG:3857',
+ crs: 'EPSG:3395',
  scale: 10,
 });
