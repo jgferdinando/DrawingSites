@@ -39,5 +39,5 @@ var bands = bands.toString();                       // automatically names your 
 Export.image.toDrive({                              // export to drive: go to the "Tasks" tab in the top right to run the task
   image: landsatImage,
   description: bands,
-  crs: 'EPSG:3857',                                 // map projection; probably leave this alone, but feel free to look up alternatives
+  crs: 'EPSG:3395',                                 // map projection; probably leave this alone, but feel free to look up alternatives
   scale: 30});                                      // scale here means meters per pixel
