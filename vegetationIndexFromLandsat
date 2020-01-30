@@ -57,7 +57,7 @@ var ndvi = ndvis.visualize(ndviVis);
 Export.image.toDrive({
   image: ndvi,
   description: 'ndvi',
-  crs: 'EPSG:3857',
+  crs: 'EPSG:3395',
   scale: 30
 });
 
@@ -67,7 +67,7 @@ var ndviDiff = ndvis.visualize(ndviDiffVis);
 Export.image.toDrive({
   image: ndviDiff,
   description: 'ndviDiff',
-  crs: 'EPSG:3857',
+  crs: 'EPSG:3395',
   scale: 30
 });
 
@@ -77,7 +77,7 @@ var ndviRatio = ndvis.visualize(ndviRatioVis);
 Export.image.toDrive({
   image: ndviRatio,
   description: 'ndviRatio',
-  crs: 'EPSG:3857',
+  crs: 'EPSG:3395',
   scale: 30
 });
 
@@ -87,6 +87,6 @@ var ndviRGB = ndvis.visualize(ndviRGBVis);
 Export.image.toDrive({
   image: ndviRGB,
   description: 'ndviRGB',
-  crs: 'EPSG:3857',
+  crs: 'EPSG:3395',
   scale: 30
 });
