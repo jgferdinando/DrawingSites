@@ -1,0 +1,39 @@
+var landsat70s = ee.ImageCollection('LANDSAT/GLS1975');
+
+var L81 = ee.ImageCollection("LANDSAT/LC08/C01/T1")
+  .filterDate('2013-01-01','2013-12-31')
+  .filter(ee.Filter.calendarRange(3,10,'month'));
+var composite1 = ee.Algorithms.Landsat.simpleComposite({
+  collection:L81,
+  asFloat:true
+});
+
+var nir70s = landsat70s.select("30").mean();
+var red70s = landsat70s.select("20").mean();
+var ndvi70s = nir70s.subtract(red70s).divide(nir70s.add(red70s));
+
+var nir1 = composite1.select("B5");
+var red1 = composite1.select("B4");
+var ndvi1 = nir1.subtract(red1).divide(nir1.add(red1));
+
+var ndviChange = ndvi70s.subtract(ndvi1);
+
+var ndvi = composite1.addBands(ndvi70s.rename('ndvi70s'))
+  .addBands(ndvi1.rename('ndvi1'))
+  .addBands(ndviChange.rename('ndviChange'));
+
+Map.addLayer(ndvi, {bands: ["ndvi70s"], min:-0.5, max:1, opacity:1})
+Map.addLayer(ndvi, {bands: ["ndvi1"], min:-0.5, max:1, opacity:1})
+Map.addLayer(ndvi, {bands: ["ndviChange"], min:-0.5, max:0.5, opacity:1})
+
+var ndvi = ndvi.visualize({
+  bands: ['ndviChange'],
+  min:-2, max:2
+});
+
+Export.image.toDrive({
+  image: ndvi,
+  description: 'ndviChange',
+  crs: 'EPSG:3857',
+  scale: 30
+});
