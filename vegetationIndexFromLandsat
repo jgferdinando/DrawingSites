@@ -3,8 +3,8 @@
 //can be made to compare differences between years as well by changing filter dates and months below
 
 var L81 = ee.ImageCollection("LANDSAT/LC08/C01/T1")
-  .filterDate('2018-01-01','2018-12-31')
-  .filter(ee.Filter.calendarRange(4,5,'month'));
+  .filterDate('2020-01-01','2022-12-31')
+  .filter(ee.Filter.calendarRange(8,10,'month'));
   
 var L82 = ee.ImageCollection("LANDSAT/LC08/C01/T1")
   .filterDate('2018-01-01','2018-12-31')
@@ -51,18 +51,22 @@ var ndvis = composite1
   .addBands(ndviDiff.rename('ndviDiff'))
   .addBands(ndviRatio.rename('ndviRatio'));
 
-var ndviVis = {bands: ['ndvi1'], min:-0.5, max:1, opacity:1};
+var ndviVis = {bands: ['ndvi1'], min:-1, max:1, opacity:1};
+
+var geomPoly = ee.Geometry.BBox(-82.5, 39.5, -68, 46);
+var ndvis = ndvis.clip(geomPoly);
+
 Map.addLayer(ndvis, ndviVis, 'NDVI');
 var ndvi = ndvis.visualize(ndviVis);
 Export.image.toDrive({
   image: ndvi,
   description: 'ndvi',
   crs: 'EPSG:3395',
-  scale: 30
+  scale: 100
 });
 
 var ndviDiffVis = {bands: ['ndviDiff'], min:-1, max:1, opacity:1};
-Map.addLayer(ndvis, ndviDiffVis, 'NDVI Differences');
+//Map.addLayer(ndvis, ndviDiffVis, 'NDVI Differences');
 var ndviDiff = ndvis.visualize(ndviDiffVis);
 Export.image.toDrive({
   image: ndviDiff,
@@ -72,7 +76,7 @@ Export.image.toDrive({
 });
 
 var ndviRatioVis = {bands: ['ndviRatio'], min:-1, max:1, opacity:1};
-Map.addLayer(ndvis, ndviRatioVis, 'NDVI Ratio');
+//Map.addLayer(ndvis, ndviRatioVis, 'NDVI Ratio');
 var ndviRatio = ndvis.visualize(ndviRatioVis);
 Export.image.toDrive({
   image: ndviRatio,
@@ -82,7 +86,7 @@ Export.image.toDrive({
 });
 
 var ndviRGBVis = {bands: ['ndvi1', 'ndvi2', 'ndvi3'], min:-0.2, max:1, opacity:1};
-Map.addLayer(ndvis, ndviRGBVis, 'NDVI Seasonal RGB');
+//Map.addLayer(ndvis, ndviRGBVis, 'NDVI Seasonal RGB');
 var ndviRGB = ndvis.visualize(ndviRGBVis);
 Export.image.toDrive({
   image: ndviRGB,
