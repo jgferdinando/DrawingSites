@@ -1,0 +1,263 @@
+// Define the center point (latitude, longitude)
+//var cityName = 'manila'
+//var latitude = 14.598470963723804, longitude = 120.98406281757731;
+
+//var cityName = 'jakarta'
+//var latitude = -6.174326623155812, longitude = 106.82824713548872;
+
+var cityName = 'tokyo'
+var latitude = 35.68118637329599, longitude = 139.76706431071665;
+
+//
+
+var center = ee.Geometry.Point([longitude, latitude]);
+
+// Define the degrees of latitude and longitude for the bounding box (half the side length of the square)
+var latDegrees = 1, lonDegrees = 1.25;  // Example: 1 degree of latitude and longitude (resulting in a 2x2 degree square)
+
+var maxPixels = 1e9;
+
+var widthMeters = 2 * lonDegrees * 120000;
+var sqMeters = widthMeters^2; 
+var pixelSize = (sqMeters / maxPixels)^0.5;
+
+// Calculate the bounding box as a square polygon
+var bbox = ee.Geometry.Rectangle(
+  [longitude - lonDegrees, latitude - latDegrees, longitude + lonDegrees, latitude + latDegrees]
+);
+
+// Function to mask clouds using the quality band
+function maskLandsat(image) {
+  var qa = image.select('QA_PIXEL');
+  var cloudShadowBitMask = (1 << 3);
+  var cloudsBitMask = (1 << 5);
+  
+  var mask = qa.bitwiseAnd(cloudShadowBitMask).eq(0)
+      .and(qa.bitwiseAnd(cloudsBitMask).eq(0));
+  
+  return image.updateMask(mask).select(["SR_B.*", "ST_B10"]).copyProperties(image, ["system:time_start"]);
+}
+
+function maskLandsatl1(image) {
+  var qa = image.select('QA_PIXEL');
+  var cloudShadowBitMask = (1 << 3);
+  var cloudsBitMask = (1 << 5);
+  
+  var mask = qa.bitwiseAnd(cloudShadowBitMask).eq(0)
+      .and(qa.bitwiseAnd(cloudsBitMask).eq(0));
+  
+  return image.updateMask(mask).select(["B8"]).copyProperties(image, ["system:time_start"]);
+}
+
+// Filter Landsat 8 and 9 images and apply cloud mask
+var landsat8 = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+                .filterBounds(bbox)
+                .filter(ee.Filter.calendarRange(2016, 2024, 'year'))
+                .map(maskLandsat);
+
+var landsat9 = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2')
+                .filterBounds(bbox)
+                .filter(ee.Filter.lt('CLOUD_COVER', 10))
+                .map(maskLandsat);
+
+// Merge Landsat 8 and 9 collections
+var landsat = landsat8.merge(landsat9);
+
+// Create a cloud-free composite using the median for surface reflectance and thermal bands
+var composite = landsat.median();
+
+// Clip the composite image to the square polygon
+var clippedComposite = composite.clip(bbox);
+
+// Calculate NDVI
+var ndvi = clippedComposite.normalizedDifference(['SR_B5', 'SR_B4']).rename('NDVI');
+
+// Apply visualization parameters to NDVI
+var ndviVis = ndvi.visualize({
+  min: -0.15,
+  max: 0.5,
+  palette: ['342a27','cedbdb']
+});
+
+var swir = clippedComposite.select('SR_B6').rename('SWIR');
+
+// Apply visualization parameters to NDVI
+var swirVis = swir.visualize({
+  min:  5000,
+  max: 20000,
+  palette: ['black', 'white']
+});
+
+// Merge Landsat 5 and 7 collections for 2005
+var pan = ee.ImageCollection('LANDSAT/LC08/C02/T1').select(['B8','QA_PIXEL'])
+                    .filterBounds(bbox)
+                    .filter(ee.Filter.calendarRange(2016, 2024, 'year'))
+                    .map(maskLandsatl1)
+                    .median();
+
+// Create a cloud-free composite for 2005 using the median
+var pan = pan.clip(bbox);
+
+// Apply visualization parameters to NDVI
+var panVis = pan.visualize({
+  min:  7000,
+  max: 14000,
+  palette: ['1b1b1b','696e6e', 'f0f0f0']
+});
+
+// Import SRTM 30 meter Digital Terrain Model (DTM)
+var srtm = ee.Image('USGS/SRTMGL1_003');
+
+// Clip the SRTM image to the square polygon
+var clippedSrtm = srtm.clip(bbox);
+
+// Get the min and max values of the SRTM data within the bounding box
+var stats = clippedSrtm.reduceRegion({
+  reducer: ee.Reducer.minMax(),
+  geometry: bbox,
+  scale: 30,
+  maxPixels: 1e8
+});
+
+var srtmMin = stats.getNumber('elevation_min');
+var srtmMax = stats.getNumber('elevation_max');
+
+// Apply visualization parameters to SRTM using calculated min and max values
+var srtmVis = clippedSrtm.visualize({
+  min: srtmMin,
+  max: srtmMax,
+  palette: ['black', 'white']
+});
+
+// Extract thermal band B10 or B11 (choose one)
+var thermalBand = clippedComposite.select('ST_B10'); // Or use 'ST_B11'
+
+var thermMin = 42000;
+var thermMax = 54000;
+
+// Apply visualization parameters to the thermal band
+var thermVis = thermalBand.visualize({
+  min: thermMin,
+  max: thermMax,
+  palette: ['19191a','414453', 'e3c6c1','fbf4f2']
+});
+
+// Import 1970s Landsat data and calculate NDVI
+var landsat1970s = ee.ImageCollection('LANDSAT/GLS1975')
+                    .filterBounds(bbox)
+                    .median();
+
+var composite1970s = landsat1970s.clip(bbox);
+
+var ndvi1970s = composite1970s.normalizedDifference(['30', '20']).rename('NDVI');
+
+// Apply visualization parameters to NDVI change
+var ndvi1970sVis = ndvi1970s.visualize({
+  min: -0.25,
+  max: 0.65,
+  palette: ['black', 'white']
+});
+
+// Merge Landsat 5 and 7 collections for 2005
+var landsat_2005 = ee.ImageCollection('LANDSAT/GLS2005').select(['40', '30'])
+                    .filterBounds(bbox)
+                    .median();
+
+// Create a cloud-free composite for 2005 using the median
+var composite_2005 = landsat_2005.clip(bbox);
+
+// Calculate NDVI for 2005
+var ndvi_2005 = composite_2005.normalizedDifference(['40', '30']).rename('NDVI');
+
+// Apply visualization parameters to NDVI 2005
+var ndvi2005Vis = ndvi_2005.visualize({
+  min: -0.75,
+  max: 0.65,
+  palette: ['black', 'white']
+});
+
+// Display the bounding box, NDVI image, SRTM DTM, thermal band, and NDVI change
+Map.centerObject(center, 10);
+Map.addLayer(ndviVis, {}, 'Clipped NDVI');
+//Map.addLayer(swirVis, {}, 'Clipped SWIR');
+Map.addLayer(panVis, {}, 'Clipped PAN');
+//Map.addLayer(srtmVis, {}, 'Clipped SRTM');
+Map.addLayer(thermVis, {}, 'Clipped Thermal Band');
+//Map.addLayer(ndvi1970sVis, {}, 'NDVI 1970s');
+//Map.addLayer(ndvi2005Vis, {}, 'NDVI 2005');
+
+// Export the NDVI image to Google Drive
+Export.image.toDrive({
+  image: ndviVis,
+  crs: 'EPSG:3395',
+  description: cityName.concat('_Clipped_NDVI'),
+  folder: 'EarthEngineExports',
+  scale: pixelSize,
+  region: bbox,
+  maxPixels: maxPixels
+});
+
+Export.image.toDrive({
+  image: swirVis,
+  crs: 'EPSG:3395',
+  description: cityName.concat('_Clipped_SWIR'),
+  folder: 'EarthEngineExports',
+  scale: pixelSize,
+  region: bbox,
+  maxPixels: maxPixels
+});
+
+// Export the SRTM DTM to Google Drive
+Export.image.toDrive({
+  image: srtmVis,
+  crs: 'EPSG:3395',
+  description: cityName.concat('_Clipped_SRTM'),
+  folder: 'EarthEngineExports',
+  scale: 30,  // Native resolution of SRTM data
+  region: bbox,
+  maxPixels: maxPixels
+});
+
+// Export the thermal band image to Google Drive
+Export.image.toDrive({
+  image: thermVis,
+  crs: 'EPSG:3395',
+  description: cityName.concat('_Clipped_ThermalBand'),
+  folder: 'EarthEngineExports',
+  scale: 90,  // Resolution of the thermal band data
+  region: bbox,
+  maxPixels: maxPixels
+});
+
+// Export the NDVI change image to Google Drive
+Export.image.toDrive({
+  image: ndvi1970sVis,
+  crs: 'EPSG:3395',
+  description: cityName.concat('_NDVI_1970s'),
+  folder: 'EarthEngineExports',
+  scale: pixelSize,
+  region: bbox,
+  maxPixels: maxPixels
+});
+
+// Export the NDVI 2005 image to Google Drive
+Export.image.toDrive({
+  image: ndvi2005Vis,
+  crs: 'EPSG:3395',
+  description: cityName.concat('_NDVI_2005'),
+  folder: 'EarthEngineExports',
+  scale: pixelSize,
+  region: bbox,
+  maxPixels: maxPixels
+});
+
+// Export the PAN image to Google Drive
+Export.image.toDrive({
+  image: panVis,
+  crs: 'EPSG:3395',
+  description: cityName.concat('_pan'),
+  folder: 'EarthEngineExports',
+  scale: pixelSize,
+  region: bbox,
+  maxPixels: maxPixels
+});
